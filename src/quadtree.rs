@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{rc::Rc, clone};
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Body {
@@ -11,16 +11,16 @@ pub struct Body {
 // A 2D Point
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
-    pub x: i16,
-    pub y: i16,
+    pub x: f64,
+    pub y: f64,
 }
 
 // A rectangle is represented with the top left corner point and its dimensions
 #[derive(Debug, Clone, Copy)]
 pub struct Rectangle {
-    corner: Point,
-    w: i16,
-    h: i16,
+    pub corner: Point,
+    pub w: f64,
+    pub h: f64,
 }
 
 impl Rectangle {
@@ -33,8 +33,8 @@ impl Rectangle {
     }
 
     fn subdivide(&self) -> (Rectangle, Rectangle, Rectangle, Rectangle) {
-        let new_w = self.w / 2;
-        let new_h = self.h / 2;
+        let new_w = self.w / 2.0;
+        let new_h = self.h / 2.0;
         let cur_x = self.corner.x;
         let cur_y = self.corner.y;
 
@@ -124,6 +124,8 @@ impl QuadTree {
                     sw.insert(body)
                 } else if se.boundary.contains(&body.position) {
                     se.insert(body)
+                } else {
+                    println!("Error: {:#?}", self.node);
                 }
             }
 
@@ -134,6 +136,7 @@ impl QuadTree {
             // subdivisions during a single insertion. Finally, update the center-of-mass and total
             // mass of x.
             Node::External(ref c) => {
+                let rc_clone = Rc::clone(c);
                 let childs = self.boundary.subdivide();
                 self.node = Node::Internal {
                     nw: Box::new(QuadTree {
@@ -153,7 +156,7 @@ impl QuadTree {
                         node: Node::Empty,
                     }),
                 };
-                self.insert(Rc::clone(c));
+                self.insert(rc_clone);
                 self.insert(body);
             }
         }
@@ -167,37 +170,38 @@ impl QuadTree {
 #[cfg(test)]
 mod tests {
     use super::{Body, Point, QuadTree, Rectangle};
+    use std::rc::Rc;
 
     #[test]
     pub fn create_and_insert() {
         let region = Rectangle {
-            corner: Point { x: 0, y: 0 },
-            w: 10,
-            h: 10,
+            corner: Point { x: 0.0, y: 0.0 },
+            w: 10.0,
+            h: 10.0,
         };
 
         let bodies = vec![
-            Body {
-                position: Point { x: 1, y: 1 },
+            Rc::new(Body {
+                position: Point { x: 1.0, y: 1.0 },
                 total_mass: 0.0,
-            },
-            Body {
-                position: Point { x: 8, y: 2 },
+            }),
+            Rc::new(Body {
+                position: Point { x: 8.0, y: 2.0 },
                 total_mass: 0.0,
-            },
-            Body {
-                position: Point { x: 8, y: 2 },
+            }),
+            Rc::new(Body {
+                position: Point { x: 8.0, y: 4.0 },
                 total_mass: 0.0,
-            },
-            Body {
-                position: Point { x: 8, y: 8 },
+            }),
+            Rc::new(Body {
+                position: Point { x: 8.0, y: 8.0 },
                 total_mass: 0.0,
-            },
+            }),
         ];
 
         let mut tree = QuadTree::new(region);
 
-        bodies.iter().for_each(|b: &Body| tree.insert(b));
+        bodies.iter().for_each(|b| tree.insert(Rc::clone(b)));
 
         println!("{:#?}", tree)
     }

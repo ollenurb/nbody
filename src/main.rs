@@ -1,11 +1,11 @@
 #![deny(clippy::all)]
 
 mod consts;
-mod simulation;
 mod quadtree;
+mod simulation;
 
+use crate::quadtree::{Point, Rectangle};
 use crate::simulation::Simulation;
-use crate::quadtree::{Rectangle, Point};
 
 use log::error;
 use pixels::{Error, Pixels, SurfaceTexture};
@@ -38,7 +38,11 @@ fn main() -> Result<(), Error> {
         Pixels::new(WIDTH, HEIGHT, surface_texture)?
     };
 
-    let mut world = Simulation::new(Rectangle {corner: Point{x: 0, y: 0}, w: WIDTH as i16, h: HEIGHT as i16});
+    let mut world = Simulation::new(Rectangle {
+        corner: Point { x: 0.0, y: 0.0 },
+        w: WIDTH as f64,
+        h: HEIGHT as f64,
+    });
 
     event_loop.run(move |event, _, control_flow| {
         // Draw the current frame
