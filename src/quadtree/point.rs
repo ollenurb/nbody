@@ -1,6 +1,6 @@
 // A 2D Point
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Point {
-    pub x: f64,
-    pub y: f64,
+    pub x: u32,
+    pub y: u32,
 }

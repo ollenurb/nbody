@@ -4,7 +4,6 @@ mod quadtree;
 mod simulation;
 mod consts;
 
-use quadtree::{Point, Rectangle};
 use simulation::Simulation;
 use consts::*;
 
@@ -37,11 +36,9 @@ fn main() -> Result<(), Error> {
         Pixels::new(WIDTH, HEIGHT, surface_texture)?
     };
 
-    let mut world = Simulation::new(Rectangle {
-        corner: Point { x: 0.0, y: 0.0 },
-        w: WIDTH as f64,
-        h: HEIGHT as f64,
-    });
+    let mut world = Simulation::new();
+    // TODO: Remove
+    world.test_init();
 
     event_loop.run(move |event, _, control_flow| {
         // Draw the current frame
