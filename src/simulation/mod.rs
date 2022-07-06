@@ -1,5 +1,7 @@
-use crate::consts::*;
-use crate::quadtree::*;
+use super::consts::*;
+use super::quadtree::*;
+
+use super::quadtree::{QuadTree, Rectangle, Point};
 
 pub struct Simulation {
     bodies: Vec<Body>,
@@ -29,8 +31,6 @@ impl Simulation {
         ];
 
         let mut tree = QuadTree::new(rect);
-
-        // bodies.iter().for_each();
 
         Simulation {
             bodies,

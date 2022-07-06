@@ -1,76 +1,15 @@
 #![allow(dead_code)]
 
+mod body;
+pub use body::Body;
+
+mod rectangle;
+pub use rectangle::Rectangle;
+
+mod point;
+pub use point::Point;
+
 use std::rc::Rc;
-
-#[derive(Debug, Clone, Copy)]
-pub struct Body {
-    pub position: Point,
-    pub total_mass: f32,
-}
-
-// A 2D Point
-#[derive(Debug, Clone, Copy)]
-pub struct Point {
-    pub x: f64,
-    pub y: f64,
-}
-
-// A rectangle is represented with the top left corner point and its dimensions
-#[derive(Debug, Clone, Copy)]
-pub struct Rectangle {
-    pub corner: Point,
-    pub w: f64,
-    pub h: f64,
-}
-
-impl Rectangle {
-    // True if point is contained inside the Rectangle (self), False otherwise
-    fn contains(&self, point: &Point) -> bool {
-        (point.x < self.corner.x + self.w)
-            && (point.x > self.corner.x)
-            && (point.y < self.corner.y + self.h)
-            && (point.y > self.corner.y)
-    }
-
-    fn subdivide(&self) -> (Rectangle, Rectangle, Rectangle, Rectangle) {
-        let new_w = self.w / 2.0;
-        let new_h = self.h / 2.0;
-        let cur_x = self.corner.x;
-        let cur_y = self.corner.y;
-
-        (
-            Rectangle {
-                corner: Point { ..self.corner },
-                w: new_w,
-                h: new_h,
-            },
-            Rectangle {
-                corner: Point {
-                    x: cur_x + new_w,
-                    y: cur_y,
-                },
-                w: new_w,
-                h: new_h,
-            },
-            Rectangle {
-                corner: Point {
-                    x: cur_x + new_w,
-                    y: cur_y + new_h,
-                },
-                w: new_w,
-                h: new_h,
-            },
-            Rectangle {
-                corner: Point {
-                    x: cur_x,
-                    y: cur_y + new_h,
-                },
-                w: new_w,
-                h: new_h,
-            },
-        )
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct QuadTree {
@@ -79,9 +18,9 @@ pub struct QuadTree {
 }
 
 // A node can be either:
-//  * Empty
-//  * External
-//  * Internal
+//     * Empty
+//     * External
+//     * Internal
 #[derive(Debug, Clone)]
 enum Node {
     Empty,
@@ -169,7 +108,7 @@ impl QuadTree {
 
 #[cfg(test)]
 mod tests {
-    use super::{Body, Point, QuadTree, Rectangle};
+    use crate::quadtree::{Point, QuadTree, Rectangle, Body};
     use std::rc::Rc;
 
     #[test]

@@ -1,22 +1,21 @@
 #![deny(clippy::all)]
 
-mod consts;
 mod quadtree;
 mod simulation;
+mod consts;
 
-use crate::quadtree::{Point, Rectangle};
-use crate::simulation::Simulation;
+use quadtree::{Point, Rectangle};
+use simulation::Simulation;
+use consts::*;
 
 use log::error;
-use pixels::{Error, Pixels, SurfaceTexture};
-
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
+use pixels::{Error, Pixels, SurfaceTexture};
 
-use crate::consts::*;
 
 fn main() -> Result<(), Error> {
     env_logger::init();
