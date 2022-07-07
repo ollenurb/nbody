@@ -23,18 +23,22 @@ impl Simulation {
             Body {
                 position: Vec2D { x: 247.0, y: 67.0 },
                 mass: 0.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
             Body {
                 position: Vec2D { x: 229.0, y: 181.0 },
                 mass: 0.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
             Body {
                 position: Vec2D { x: 126.0, y: 112.0 },
                 mass: 0.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
             Body {
                 position: Vec2D { x: 201.0, y: 205.0 },
                 mass: 0.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
         ];
 

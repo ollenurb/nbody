@@ -9,6 +9,8 @@ pub use bound::Bound;
 mod vec_2d;
 pub use vec_2d::Vec2D;
 
+use crate::consts::THETA;
+
 #[derive(Debug, Clone)]
 pub struct QuadTree {
     boundary: Bound,
@@ -29,7 +31,6 @@ enum Node {
     External(Body),
 
     Internal {
-        // (mx, my): Center of mass
         cluster: Body,
         nw: Box<QuadTree>,
         ne: Box<QuadTree>,
@@ -64,6 +65,14 @@ impl QuadTree {
         }
     }
 
+    // Compute the exerted force with respect to another Body
+    pub fn update_cluster(a: &mut Body, b: &Body) {
+        let new_mass = a.mass + b.mass;
+        a.position.x = ((a.position.x * a.mass) + (b.position.x * b.mass)) / new_mass;
+        a.position.y = ((a.position.y * a.mass) + (b.position.y * b.mass)) / new_mass;
+        a.mass = new_mass;
+    }
+
     pub fn new(w: u32, h: u32) -> Self {
         let whole_space = Bound {
             x: 0.0,
@@ -85,8 +94,14 @@ impl QuadTree {
 
             // if the node is an internal node, update mass and center of mass, then insert it
             // recursively into the appropriate quadrant
-            Node::Internal { ref mut cluster, ref mut nw, ref mut ne, ref mut sw, ref mut se } => {
-                cluster.update_foces(&body);
+            Node::Internal {
+                ref mut cluster,
+                ref mut nw,
+                ref mut ne,
+                ref mut sw,
+                ref mut se,
+            } => {
+                QuadTree::update_cluster(cluster, &body);
                 if nw.boundary.contains(&body) {
                     nw.insert(body);
                 } else if ne.boundary.contains(&body) {
@@ -114,35 +129,63 @@ impl QuadTree {
         }
     }
 
-    // pub fn collect_rectangles(&self) -> Vec<&'a Rectangle> {
-    // }
+    pub fn compute_force(&self, body: &Body) -> f64 {
+        match &self.node {
+            Node::Empty => 0.0,
+            Node::External(a) => a.force(body),
+            Node::Internal {
+                ref cluster,
+                nw,
+                ne,
+                sw,
+                se,
+            } => {
+                let dist = self.boundary.w / body.dist(cluster);
+
+                if dist < THETA {
+                    cluster.force(body)
+                } else {
+                    nw.compute_force(body)
+                        + ne.compute_force(body)
+                        + sw.compute_force(body)
+                        + se.compute_force(body)
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
         consts::*,
-        quadtree::{Body, Vec2D, QuadTree},
+        quadtree::{Body, QuadTree, Vec2D},
     };
+
+    use std::time::Instant;
 
     #[test]
     pub fn create_and_insert() {
         let bodies = vec![
             Body {
                 position: Vec2D { x: 1.0, y: 1.0 },
-                mass: 0.0,
+                mass: 1.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
             Body {
                 position: Vec2D { x: 8.0, y: 2.0 },
-                mass: 0.0,
+                mass: 1.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
             Body {
                 position: Vec2D { x: 8.0, y: 4.0 },
-                mass: 0.0,
+                mass: 1.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
             Body {
                 position: Vec2D { x: 8.0, y: 8.0 },
-                mass: 0.0,
+                mass: 1.0,
+                velocity: Vec2D { x: 1.0, y: 1.0 },
             },
         ];
 
@@ -151,5 +194,22 @@ mod tests {
         bodies.iter().for_each(|b| tree.insert(b.clone()));
 
         println!("{:#?}", tree)
+    }
+
+    #[test]
+    fn bench() {
+        let mut bodies = Vec::new();
+        let items = 10000;
+        let (w, h) = (350, 600);
+
+        for _ in 0..items {
+            bodies.push(Body::from_random(w as f64, h as f64, 1.0));
+        }
+
+        let start = Instant::now();
+        let mut tree = QuadTree::new(w, h);
+        bodies.iter().for_each(|b| tree.insert(*b));
+        let duration = start.elapsed();
+        println!("Inserted {} items in: {:?}", items, duration);
     }
 }
