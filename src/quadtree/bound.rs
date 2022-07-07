@@ -1,7 +1,7 @@
-use super::Point;
+use super::Body;
 
 // A rectangle is represented with the top left corner point and its dimensions
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Bound {
     pub x: f64,
     pub y: f64,
@@ -11,11 +11,11 @@ pub struct Bound {
 
 impl Bound {
     // True if point is contained inside the Rectangle (self), False otherwise
-    pub fn contains(&self, point: &Point) -> bool {
-        (point.x < (self.x + self.w) as u32)
-            && (point.x > self.x as u32)
-            && (point.y < (self.y + self.h) as u32)
-            && (point.y > self.y as u32)
+    pub fn contains(&self, body: &Body) -> bool {
+        (body.position.x < self.x + self.w)
+            && (body.position.x > self.x)
+            && (body.position.y < self.y + self.h)
+            && (body.position.y > self.y)
     }
 
     pub fn subdivide(&self) -> (Bound, Bound, Bound, Bound) {
