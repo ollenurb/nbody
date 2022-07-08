@@ -111,7 +111,7 @@ impl QuadTree {
                 } else if se.boundary.contains(&body) {
                     se.insert(body);
                 } else {
-                    panic!("A body cannot be inserted in any boundary")
+                    // panic!("A body cannot be inserted in any boundary")
                 }
             }
 
@@ -129,10 +129,15 @@ impl QuadTree {
         }
     }
 
-    pub fn compute_force(&self, body: &Body) -> f64 {
+    pub fn compute_force(&self, body: &mut Body) {
         match &self.node {
-            Node::Empty => 0.0,
-            Node::External(a) => a.force(body),
+            // An empty Node doesn't exert any force
+            Node::Empty => (),
+            // A cluster of nodes can exert force iff it's distant enough
+            Node::External(a) => {
+                if a.position == body.position { return }
+                body.update_force(a)
+            },
             Node::Internal {
                 ref cluster,
                 nw,
@@ -143,13 +148,14 @@ impl QuadTree {
                 let dist = self.boundary.w / body.dist(cluster);
 
                 if dist < THETA {
-                    cluster.force(body)
+                    body.update_force(cluster);
                 } else {
-                    nw.compute_force(body)
-                        + ne.compute_force(body)
-                        + sw.compute_force(body)
-                        + se.compute_force(body)
+                    nw.compute_force(body);
+                    ne.compute_force(body);
+                    sw.compute_force(body);
+                    se.compute_force(body);
                 }
+
             }
         }
     }
@@ -171,29 +177,55 @@ mod tests {
                 position: Vec2D { x: 1.0, y: 1.0 },
                 mass: 1.0,
                 velocity: Vec2D { x: 1.0, y: 1.0 },
+                force: Default::default(),
             },
             Body {
                 position: Vec2D { x: 8.0, y: 2.0 },
                 mass: 1.0,
                 velocity: Vec2D { x: 1.0, y: 1.0 },
+                force: Default::default(),
             },
             Body {
                 position: Vec2D { x: 8.0, y: 4.0 },
                 mass: 1.0,
                 velocity: Vec2D { x: 1.0, y: 1.0 },
+                force: Default::default(),
             },
             Body {
                 position: Vec2D { x: 8.0, y: 8.0 },
                 mass: 1.0,
                 velocity: Vec2D { x: 1.0, y: 1.0 },
+                force: Default::default(),
             },
         ];
 
         let mut tree = QuadTree::new(WIDTH, HEIGHT);
 
         bodies.iter().for_each(|b| tree.insert(b.clone()));
+        let mut a = bodies[0];
+        tree.compute_force(&mut a);
+        println!("(a) after computing force using BHT: {:#?}", a);
+    }
 
-        println!("{:#?}", tree)
+    #[test]
+    pub fn compute_force_must_not_be_nan() {
+        let mut a = Body {
+            position: Vec2D { x: 8.0, y: 4.0 },
+            mass: 1.0,
+            velocity: Vec2D { x: 1.0, y: 1.0 },
+            force: Default::default(),
+        };
+
+        let b = Body {
+            position: Vec2D { x: 8.0, y: 8.0 },
+            mass: 1.0,
+            velocity: Vec2D { x: 1.0, y: 1.0 },
+            force: Default::default(),
+        };
+
+
+        a.update_force(&b);
+        println!("(a) after computing force exerted by (b): {:#?}", a);
     }
 
     #[test]
@@ -211,5 +243,13 @@ mod tests {
         bodies.iter().for_each(|b| tree.insert(*b));
         let duration = start.elapsed();
         println!("Inserted {} items in: {:?}", items, duration);
+
+        let start = Instant::now();
+        for body in bodies.iter_mut() {
+            tree.compute_force(body);
+        }
+
+        let duration = start.elapsed();
+        println!("Computed forces of {} items in: {:?}", items, duration);
     }
 }

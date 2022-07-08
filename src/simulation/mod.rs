@@ -5,40 +5,40 @@ use super::quadtree::{QuadTree, Vec2D};
 
 pub struct Simulation {
     bodies: Vec<Body>,
-    tree: QuadTree,
 }
 
 impl Simulation {
     pub fn new() -> Self {
-        let tree = QuadTree::new(WIDTH, HEIGHT);
-
         Simulation {
             bodies: Vec::new(),
-            tree,
         }
     }
 
     pub fn test_init(&mut self) {
         let bodies = vec![
             Body {
-                position: Vec2D { x: 247.0, y: 67.0 },
-                mass: 0.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
+                position: Vec2D { x: 160.0, y: 120.0 },
+                mass: 100.0,
+                velocity: Vec2D { x: 0.0, y: 0.0 },
+                force: Default::default(),
             },
             Body {
                 position: Vec2D { x: 229.0, y: 181.0 },
-                mass: 0.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
+                mass: 10.0,
+                velocity: Vec2D { x: -0.1, y: -0.1 },
+                force: Default::default(),
             },
             Body {
                 position: Vec2D { x: 126.0, y: 112.0 },
-                mass: 0.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
+                mass: 2.0,
+                velocity: Vec2D { x: 0.1, y: 0.1 },
+                force: Default::default(),
             },
             Body {
                 position: Vec2D { x: 201.0, y: 205.0 },
-                mass: 0.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
+                mass: 3.0,
+                velocity: Vec2D { x: -0.1, y: -0.1 },
+                force: Default::default(),
             },
         ];
 
@@ -48,10 +48,20 @@ impl Simulation {
     /// Update the world internal state by recomputing forces for each body
     /// We use the Barnes Hut Algorithm here
     pub fn update(&mut self) {
+
         // Create a tree from the bodies
+        let mut tree = QuadTree::new(WIDTH, HEIGHT);
         self.bodies
-            .iter()
-            .for_each(|b| self.tree.insert(b.clone()))
+            .iter_mut()
+            .for_each(|b| {
+                b.reset_force();
+                tree.insert(*b)
+            });
+
+        self.bodies.iter_mut().for_each(|b| {
+            tree.compute_force(b);
+            b.update_position();
+        });
     }
 
     /// Draw the `World` state to the frame buffer.

@@ -9,17 +9,35 @@ pub struct Body {
     pub position: Vec2D,
     pub velocity: Vec2D,
     pub mass: f64,
+    pub force: Vec2D,
 }
 
 impl Body {
-
     pub fn from_random(w: f64, h: f64, mass: f64) -> Self {
         let mut rng = rand::thread_rng();
         Body {
-            position: Vec2D { x: rng.gen_range(0.0..w), y: rng.gen_range(0.0..h) },
+            position: Vec2D {
+                x: rng.gen_range(0.0..w),
+                y: rng.gen_range(0.0..h),
+            },
             mass,
-            velocity: Vec2D { x: 0.0, y: 0.0 },
+            velocity: Default::default(),
+            force: Default::default(),
         }
+    }
+
+    // Update position and velocity based on the current velocity and force exerted by other bodies
+    pub fn update_position(&mut self) {
+        self.velocity.x += self.force.x / self.mass;
+        self.velocity.y += self.force.y / self.mass;
+
+        self.position.x += self.velocity.x;
+        self.position.y += self.velocity.y;
+    }
+
+    pub fn reset_force(&mut self) {
+        self.force.x = 0.0;
+        self.force.y = 0.0;
     }
 
     // Euclidean distance between two bodies
@@ -28,12 +46,17 @@ impl Body {
         (self.position - other.position).norm()
     }
 
-    // Compute the exerted force with respect to another Body
-    pub fn force(&self, b: &Body) -> f64 {
-        let a = self;
-        (G * a.mass * b.mass) / a.dist(b).powi(2)
-    }
+    // Update the exerted force by another Body
+    pub fn update_force(&mut self, b: &Body) {
+        let dx = self.position.x - b.position.x;
+        let dy = self.position.y - b.position.y;
 
+        let r = (dx.powi(2) + dy.powi(2)).sqrt();
+        let f = (G * self.mass * b.mass) / r.powi(2);
+
+        self.force.x += (f * dx) / r;
+        self.force.y += (f * dy) / r;
+    }
 }
 
 impl Default for Body {
@@ -42,8 +65,7 @@ impl Default for Body {
             position: Vec2D { x: 0.0, y: 0.0 },
             mass: 0.0,
             velocity: Vec2D { x: 0.0, y: 0.0 },
+            force: Default::default(),
         }
     }
 }
-
-
