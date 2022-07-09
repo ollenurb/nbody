@@ -111,6 +111,10 @@ impl QuadTree {
                 } else if se.boundary.contains(&body) {
                     se.insert(body);
                 } else {
+                    // TODO: Remove. We can also remove it since it doesn't matter if it cannot be
+                    // inserted in any boundary. The total mass will be already stored on the
+                    // parent.
+                    // println!("Body: {:#?} cannot be inserted in any boundary.\n{:#?}", body, self);
                     // panic!("A body cannot be inserted in any boundary")
                 }
             }
@@ -133,10 +137,10 @@ impl QuadTree {
         match &self.node {
             // An empty Node doesn't exert any force
             Node::Empty => (),
-            // A cluster of nodes can exert force iff it's distant enough
             Node::External(a) => {
-                if a.position == body.position { return }
-                body.update_force(a)
+                if a.position != body.position {
+                    body.update_force(a)
+                }
             },
             Node::Internal {
                 ref cluster,
@@ -145,6 +149,7 @@ impl QuadTree {
                 sw,
                 se,
             } => {
+                // A cluster of nodes can exert force iff it's distant enough
                 let dist = self.boundary.w / body.dist(cluster);
 
                 if dist < THETA {
@@ -182,13 +187,13 @@ mod tests {
             Body {
                 position: Vec2D { x: 8.0, y: 2.0 },
                 mass: 1.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
+                velocity: Vec2D { x: 0.0, y: 0.0 },
                 force: Default::default(),
             },
             Body {
                 position: Vec2D { x: 8.0, y: 4.0 },
                 mass: 1.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
+                velocity: Vec2D { x: 0.0, y: 1.0 },
                 force: Default::default(),
             },
             Body {

@@ -28,8 +28,8 @@ impl Body {
 
     // Update position and velocity based on the current velocity and force exerted by other bodies
     pub fn update_position(&mut self) {
-        self.velocity.x += self.force.x / self.mass;
-        self.velocity.y += self.force.y / self.mass;
+        self.velocity.x = (self.force.x + self.velocity.x) / self.mass;
+        self.velocity.y = (self.force.y + self.velocity.y) / self.mass;
 
         self.position.x += self.velocity.x;
         self.position.y += self.velocity.y;
@@ -48,14 +48,14 @@ impl Body {
 
     // Update the exerted force by another Body
     pub fn update_force(&mut self, b: &Body) {
-        let dx = self.position.x - b.position.x;
-        let dy = self.position.y - b.position.y;
+        let dx = b.position.x - self.position.x;
+        let dy = b.position.y - self.position.y;
 
         let r = (dx.powi(2) + dy.powi(2)).sqrt();
         let f = (G * self.mass * b.mass) / r.powi(2);
 
-        self.force.x += (f * dx) / r;
-        self.force.y += (f * dy) / r;
+        self.force.x += f * (dx / r);
+        self.force.y += f * (dy / r);
     }
 }
 

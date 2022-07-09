@@ -33,7 +33,7 @@ impl Add for Vec2D {
 
 impl Vec2D {
     pub fn norm(&self) -> f64 {
-        (self.x + self.y).powi(2).sqrt()
+        (self.x.powi(2) + self.y.powi(2)).sqrt()
     }
 }
 
