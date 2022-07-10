@@ -13,6 +13,11 @@ pub struct Body {
 }
 
 impl Body {
+
+    pub fn new(position: Vec2D, velocity: Vec2D, mass: f64) -> Self {
+        Body { position, velocity, mass, force: Default::default() }
+    }
+
     pub fn from_random(w: f64, h: f64, mass: f64) -> Self {
         let mut rng = rand::thread_rng();
         Body {
@@ -50,9 +55,10 @@ impl Body {
     pub fn update_force(&mut self, b: &Body) {
         let dx = b.position.x - self.position.x;
         let dy = b.position.y - self.position.y;
+        let eps: f64 = 3e2;
 
         let r = (dx.powi(2) + dy.powi(2)).sqrt();
-        let f = (G * self.mass * b.mass) / r.powi(2);
+        let f = (G * self.mass * b.mass) / (r.powi(2) + eps.powi(2));
 
         self.force.x += f * (dx / r);
         self.force.y += f * (dy / r);

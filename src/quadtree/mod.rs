@@ -193,7 +193,7 @@ mod tests {
             Body {
                 position: Vec2D { x: 8.0, y: 4.0 },
                 mass: 1.0,
-                velocity: Vec2D { x: 0.0, y: 1.0 },
+                velocity: Vec2D { x: 0.0, y: 2.0 },
                 force: Default::default(),
             },
             Body {
