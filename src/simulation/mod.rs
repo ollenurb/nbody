@@ -1,8 +1,11 @@
 use std::fs::File;
-use std::io::{Result, BufReader, BufRead, self};
+use std::io::{self, BufRead, BufReader, Result};
+
+use self::renderizable_body::RenderizableBody;
 
 use super::consts::*;
 use super::quadtree::*;
+use crate::util::*;
 
 use super::quadtree::{QuadTree, Vec2D};
 
@@ -47,42 +50,14 @@ impl Simulation {
                     simulation.bodies.push(body);
                 }
                 _ => {
-                    return Result::Err(io::Error::new(io::ErrorKind::Other, "Unexpected file format"));
+                    return Result::Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "Unexpected file format",
+                    ));
                 }
             }
         }
         Ok(simulation)
-    }
-
-    pub fn test_init(&mut self) {
-        let bodies = vec![
-            Body {
-                position: Vec2D { x: 161.0, y: 123.5 },
-                mass: 1e15,
-                velocity: Vec2D { x: 0.0, y: 0.0 },
-                force: Default::default(),
-            },
-            Body {
-                position: Vec2D { x: 229.0, y: 181.0 },
-                mass: 105.0,
-                velocity: Vec2D { x: -0.1, y: 0.1 },
-                force: Default::default(),
-            },
-            Body {
-                position: Vec2D { x: 126.0, y: 112.0 },
-                mass: 184.0,
-                velocity: Vec2D { x: 0.0, y: 1000.0 },
-                force: Default::default(),
-            },
-            Body {
-                position: Vec2D { x: 201.0, y: 205.0 },
-                mass: 86.0,
-                velocity: Vec2D { x: 0.0, y: 0.0 },
-                force: Default::default(),
-            },
-        ];
-
-        bodies.iter().for_each(|b| self.bodies.push(*b))
     }
 
     /// Update the world internal state by recomputing forces for each body
@@ -131,38 +106,59 @@ impl Simulation {
     ///
     /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
     pub fn draw(&self, frame: &mut [u8]) {
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            // We need to compute the indexes manually
-            let x = i as u32 % WIDTH;
-            let y = i as u32 / WIDTH;
+        let frame_u32 =
+            unsafe { core::slice::from_raw_parts_mut(frame.as_ptr() as *mut u32, frame.len() / 4) };
 
-            let rgba = if self.bodies.iter().any(|b| {
-                let ix: u32 = b.position.x as u32;
-                let iy: u32 = b.position.y as u32;
-                // x <= ix + 5 && x >= ix && y >= iy && y <= iy + 5
-                x <= ix && x >= ix && y >= iy && y <= iy
-            }) {
-                [0xff, 0xff, 0xff, 0xff]
-            } else {
-                [0x00, 0x00, 0x00, 0xff]
-            };
-
-            pixel.copy_from_slice(&rgba);
+        // Clear buffer
+        for pixel in frame_u32.iter_mut() {
+            *pixel = 0xff000000;
         }
+
+        // First, transform the bodies into renderizable objects
+        self.bodies
+            .iter()
+            .map(|b| RenderizableBody {
+                x: map_range(
+                    b.position.x,
+                    self.min_max.0,
+                    self.min_max.1,
+                    0.0,
+                    WIDTH as f64,
+                ) as u32,
+                y: map_range(
+                    b.position.y,
+                    self.min_max.0,
+                    self.min_max.1,
+                    0.0,
+                    HEIGHT as f64,
+                ) as u32,
+            })
+            .for_each(|body| {
+                let i = ((body.y * WIDTH) + body.x) as usize;
+                if i < frame_u32.len() {
+                    frame_u32[i] = 0xffffffff;
+                }
+            })
     }
 }
 
-
-
 #[cfg(test)]
 mod test {
+    use std::time::Instant;
+
+    use crate::{consts::HEIGHT, consts::WIDTH, quadtree::QuadTree};
+
     use super::Simulation;
 
-
     #[test]
-    pub fn load_from_file() {
-        let sim = Simulation::load_from_file("galaxy1.txt").unwrap();
-        println!("{:#?}", sim);
-    }
+    pub fn load_from_file_then_generate_tree() {
+        let mut sim = Simulation::load_from_file("galaxy1.txt").unwrap();
 
+        let start = Instant::now();
+        let mut tree = QuadTree::new(WIDTH, HEIGHT);
+        sim.bodies.iter().for_each(|b| tree.insert(*b));
+        sim.bodies.iter_mut().for_each(|b| tree.compute_force(b));
+        let elapsed = start.elapsed();
+        println!("Computed {} bodies in {:?}", sim.bodies.len(), elapsed);
+    }
 }
