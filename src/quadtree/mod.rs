@@ -110,12 +110,6 @@ impl QuadTree {
                     sw.insert(body);
                 } else if se.boundary.contains(&body) {
                     se.insert(body);
-                } else {
-                    // TODO: Remove. We can also remove it since it doesn't matter if it cannot be
-                    // inserted in any boundary. The total mass will be already stored on the
-                    // parent.
-                    // println!("Body: {:#?} cannot be inserted in any boundary.\n{:#?}", body, self);
-                    // panic!("A body cannot be inserted in any boundary")
                 }
             }
 
@@ -131,6 +125,27 @@ impl QuadTree {
                 self.insert(body);
             }
         }
+    }
+
+    pub fn get_rectangles(&self) -> Vec<Bound> {
+        let mut bounds: Vec<Bound> = Vec::new();
+        let mut stack: Vec<QuadTree> = Vec::new();
+        while !stack.is_empty() {
+            let cur = stack.pop().unwrap();
+            // push the boundary inside
+            bounds.push(cur.boundary);
+            // Advance the recursion
+            match stack.pop().unwrap().node {
+                Node::Internal { nw, ne, sw, se, .. } => {
+                    stack.push(*nw);
+                    stack.push(*ne);
+                    stack.push(*sw);
+                    stack.push(*se);
+                },
+                _ => ()
+            }
+        }
+        bounds
     }
 
     pub fn compute_force(&self, body: &mut Body) {
@@ -177,7 +192,7 @@ mod tests {
 
     #[test]
     pub fn create_and_insert() {
-        let bodies = vec![
+        let mut bodies = vec![
             Body {
                 position: Vec2D { x: 1.0, y: 1.0 },
                 mass: 1.0,
@@ -198,7 +213,7 @@ mod tests {
             },
             Body {
                 position: Vec2D { x: 8.0, y: 8.0 },
-                mass: 1.0,
+                mass: 10.0,
                 velocity: Vec2D { x: 1.0, y: 1.0 },
                 force: Default::default(),
             },
@@ -207,9 +222,9 @@ mod tests {
         let mut tree = QuadTree::new(WIDTH, HEIGHT);
 
         bodies.iter().for_each(|b| tree.insert(b.clone()));
-        let mut a = bodies[0];
-        tree.compute_force(&mut a);
-        println!("(a) after computing force using BHT: {:#?}", a);
+        bodies.iter_mut().for_each(|b| tree.compute_force(b));
+        println!("{:#?}", bodies);
+        println!("{:#?}", tree);
     }
 
     #[test]
@@ -256,5 +271,25 @@ mod tests {
 
         let duration = start.elapsed();
         println!("Computed forces of {} items in: {:?}", items, duration);
+    }
+
+
+    #[test]
+    fn distance_must_be_correct() {
+        let a = Body {
+            position: Vec2D { x: -7.0, y: -4.0 },
+            velocity: Default::default(),
+            mass: 0.0,
+            force: Default::default(),
+        };
+
+        let b = Body {
+            position: Vec2D { x: 17.0, y: 6.5 },
+            velocity: Default::default(),
+            mass: 0.0,
+            force: Default::default(),
+        };
+
+        println!("distance between a and b is {}", a.dist(&b));
     }
 }

@@ -16,6 +16,7 @@ mod renderizable_body;
 pub struct Simulation {
     bodies: Vec<Body>,
     min_max: (f64, f64),
+    tree: QuadTree,
 }
 
 impl Simulation {
@@ -25,6 +26,7 @@ impl Simulation {
         let mut simulation = Simulation {
             bodies: Vec::new(),
             min_max: (0.0, 0.0),
+            tree: QuadTree::new(WIDTH, HEIGHT),
         };
 
         for line in reader.lines() {
@@ -63,17 +65,26 @@ impl Simulation {
     /// Update the world internal state by recomputing forces for each body
     /// We use the Barnes Hut Algorithm here
     pub fn update(&mut self) {
+
+        // First, filter out bodies that are going out of simulation boundaries
+        self.bodies.retain(|b| {
+            // Normalize ranges into x and y
+            let x = map_range(b.position.x, self.min_max.0, self.min_max.1, 0.0, WIDTH as f64) as u32;
+            let y = map_range(b.position.y, self.min_max.0, self.min_max.1, 0.0, HEIGHT as f64) as u32;
+            x <= WIDTH && y <= HEIGHT
+        });
+
         // Create a tree from the bodies
-        let mut tree = QuadTree::new(WIDTH, HEIGHT);
+        self.tree = QuadTree::new(WIDTH, HEIGHT);
 
         self.bodies.iter_mut().for_each(|b| {
             b.reset_force();
-            tree.insert(*b)
+            self.tree.insert(*b)
         });
 
         self.bodies.iter_mut().for_each(|b| {
-            tree.compute_force(b);
-            b.update_position();
+            self.tree.compute_force(b);
+            b.update_position(1e-2);
         });
 
         // println!("{:?}", self.bodies[1].velocity);
@@ -81,24 +92,19 @@ impl Simulation {
 
     // TODO: Refactor draw pipeline
     // Draw a rectangle
-    pub fn draw_rect(&self, frame: &mut [u8], s: (u32, u32), e: (u32, u32)) {
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            // We need to compute the indexes manually
-            let x = i as u32 % WIDTH;
-            let y = i as u32 / WIDTH;
+    pub fn draw_rect(&self, frame: &mut [u32], x: u32, y: u32, w: u32, h: u32) {
+        for ix in x..x + w {
+            let i = ((y * WIDTH) + ix) as usize;
+            let j = (((y+h) * WIDTH) + ix) as usize;
+            frame[i] = 0xffffffff;
+            frame[j] = 0xffffffff;
+        }
 
-            let top = (y == s.1) && (x >= s.0) && (x <= e.0);
-            let bottom = (y == e.1) && (x >= s.0) && (x <= e.0);
-            let left = (x == s.0) && (y >= s.1) && (y <= e.1);
-            let right = (x == e.0) && (y >= s.1) && (y <= e.1);
-
-            let rgba = if top || bottom || left || right {
-                [0x48, 0xb2, 0xe8, 0xff]
-            } else {
-                [0x48, 0xb2, 0xe8, 0xff]
-            };
-
-            pixel.copy_from_slice(&rgba);
+        for iy in y..y + h {
+            let i = ((iy * WIDTH) + x) as usize;
+            let j = ((iy * WIDTH) + (x + w)) as usize;
+            frame[i] = 0xffffffff;
+            frame[j] = 0xffffffff;
         }
     }
 

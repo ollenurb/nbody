@@ -1,4 +1,4 @@
-pub const WIDTH: u32 = 600;
-pub const HEIGHT: u32 = 300;
-pub const THETA: f64 = 0.5;
-pub const G: f64 = 6.674E-11;
+pub const WIDTH: u32 = 500;
+pub const HEIGHT: u32 = 500;
+pub const THETA: f64 = 0.0001;
+pub const G: f64 = 6.67E-11;
