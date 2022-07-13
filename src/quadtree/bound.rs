@@ -29,4 +29,35 @@ impl Bound {
 
         (nw, ne, sw, se)
     }
+
+    pub fn nw(&self) -> Bound {
+        let new_w = self.w / 2.0;
+        let new_h = self.h / 2.0;
+
+        Bound { x: self.x, y: self.y, w: new_w, h: new_h }
+    }
+
+
+    pub fn ne(&self) -> Bound {
+        let new_w = self.w / 2.0;
+        let new_h = self.h / 2.0;
+
+        Bound { x: self.x + new_w, y: self.y, w: new_w, h: new_h, }
+    }
+
+
+    pub fn sw(&self) -> Bound {
+        let new_w = self.w / 2.0;
+        let new_h = self.h / 2.0;
+
+        Bound { x: self.x + new_w, y: self.y + new_h, w: new_w, h: new_h }
+    }
+
+
+    pub fn se(&self) -> Bound {
+        let new_w = self.w / 2.0;
+        let new_h = self.h / 2.0;
+
+        Bound { x: self.x, y: self.y + new_h, w: new_w, h: new_h }
+    }
 }

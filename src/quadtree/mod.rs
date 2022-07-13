@@ -73,12 +73,12 @@ impl QuadTree {
         a.mass = new_mass;
     }
 
-    pub fn new(w: u32, h: u32) -> Self {
+    pub fn new(w: f64, h: f64) -> Self {
         let whole_space = Bound {
             x: 0.0,
             y: 0.0,
-            w: w as f64,
-            h: h as f64,
+            w,
+            h,
         };
 
         QuadTree {
@@ -219,7 +219,7 @@ mod tests {
             },
         ];
 
-        let mut tree = QuadTree::new(WIDTH, HEIGHT);
+        let mut tree = QuadTree::new(WIDTH as f64, HEIGHT as f64);
 
         bodies.iter().for_each(|b| tree.insert(b.clone()));
         bodies.iter_mut().for_each(|b| tree.compute_force(b));
@@ -259,7 +259,7 @@ mod tests {
         }
 
         let start = Instant::now();
-        let mut tree = QuadTree::new(w, h);
+        let mut tree = QuadTree::new(w as f64, h as f64);
         bodies.iter().for_each(|b| tree.insert(*b));
         let duration = start.elapsed();
         println!("Inserted {} items in: {:?}", items, duration);

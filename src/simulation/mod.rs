@@ -23,11 +23,8 @@ impl Simulation {
     pub fn load_from_file(path: &str) -> Result<Simulation> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        let mut simulation = Simulation {
-            bodies: Vec::new(),
-            min_max: (0.0, 0.0),
-            tree: QuadTree::new(WIDTH, HEIGHT),
-        };
+        let mut bodies: Vec<Body> = Vec::new();
+        let mut min_max = (0.0, 0.0);
 
         for line in reader.lines() {
             let nums: Vec<f64> = line?
@@ -36,7 +33,7 @@ impl Simulation {
                 .collect();
 
             match nums.len() {
-                1 => simulation.min_max = (-nums[0], nums[0]),
+                1 => min_max = (-nums[0], nums[0]),
                 5 => {
                     let body = Body::new(
                         Vec2D {
@@ -49,7 +46,7 @@ impl Simulation {
                         },
                         nums[4],
                     );
-                    simulation.bodies.push(body);
+                    bodies.push(body);
                 }
                 _ => {
                     return Result::Err(io::Error::new(
@@ -59,7 +56,11 @@ impl Simulation {
                 }
             }
         }
-        Ok(simulation)
+        Ok(Simulation {
+            bodies,
+            min_max,
+            tree: QuadTree::new(min_max.1, min_max.1)
+        })
     }
 
     /// Update the world internal state by recomputing forces for each body
@@ -75,7 +76,7 @@ impl Simulation {
         });
 
         // Create a tree from the bodies
-        self.tree = QuadTree::new(WIDTH, HEIGHT);
+        self.tree = QuadTree::new(self.min_max.1, self.min_max.1);
 
         self.bodies.iter_mut().for_each(|b| {
             b.reset_force();
@@ -84,7 +85,7 @@ impl Simulation {
 
         self.bodies.iter_mut().for_each(|b| {
             self.tree.compute_force(b);
-            b.update_position(1e-2);
+            b.update_position(1e-1);
         });
 
         // println!("{:?}", self.bodies[1].velocity);
@@ -161,7 +162,7 @@ mod test {
         let mut sim = Simulation::load_from_file("galaxy1.txt").unwrap();
 
         let start = Instant::now();
-        let mut tree = QuadTree::new(WIDTH, HEIGHT);
+        let mut tree = QuadTree::new(WIDTH as f64, HEIGHT as f64);
         sim.bodies.iter().for_each(|b| tree.insert(*b));
         sim.bodies.iter_mut().for_each(|b| tree.compute_force(b));
         let elapsed = start.elapsed();
