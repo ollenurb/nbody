@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Result};
 
-use self::renderizable_body::RenderizableBody;
 
 use super::consts::*;
 use super::quadtree::*;
@@ -9,14 +8,11 @@ use crate::util::*;
 
 use super::quadtree::QuadTree;
 
-mod renderizable_body;
-
 // Structure that sepresents both the simulation state and the simulation parameters
 #[derive(Debug)]
 pub struct Simulation {
     bodies: Vec<Body>,
     min_max: (f64, f64),
-    tree: QuadTree,
 }
 
 impl Simulation {
@@ -49,7 +45,7 @@ impl Simulation {
         Ok(Simulation {
             bodies,
             min_max,
-            tree: QuadTree::new(min_max.1, min_max.1),
+            // tree: QuadTree::new(min_max.1, min_max.1),
         })
     }
 
@@ -65,27 +61,23 @@ impl Simulation {
         });
 
         // Create a tree from the bodies
-        self.tree = QuadTree::new(self.min_max.1, self.min_max.1);
+        let mut tree = QuadTree::new(self.min_max.1, self.min_max.1);
 
         self.bodies.iter_mut().for_each(|b| {
             b.reset_force();
-            self.tree.insert(*b)
+            tree.insert(*b)
         });
 
         self.bodies.iter_mut().for_each(|b| {
-            self.tree
-                .close_bodies(b.clone())
+            tree.close_bodies(b.clone())
                 .into_iter()
                 .for_each(|cb| b.update_force(cb));
             b.update_position(1e-1);
         });
 
-        // println!("{:?}", self.bodies[1].velocity);
     }
 
     /// Draw the `World` state to the frame buffer.
-    ///
-    /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
     pub fn draw(&self, frame: &mut [u8]) {
         let frame_u32 =
             unsafe { core::slice::from_raw_parts_mut(frame.as_ptr() as *mut u32, frame.len() / 4) };
@@ -98,24 +90,10 @@ impl Simulation {
         // First, transform the bodies into renderizable objects
         self.bodies
             .iter()
-            .map(|b| RenderizableBody {
-                x: map_range(
-                    b.position.x,
-                    self.min_max.0,
-                    self.min_max.1,
-                    0.0,
-                    WIDTH as f64,
-                ) as u32,
-                y: map_range(
-                    b.position.y,
-                    self.min_max.0,
-                    self.min_max.1,
-                    0.0,
-                    HEIGHT as f64,
-                ) as u32,
-            })
+            .map(|b| affine_transform(b.position, self.min_max.0, self.min_max.1))
+            .map(|b| (b.x as u32, b.y as u32))
             .for_each(|body| {
-                let i = ((body.y * WIDTH) + body.x) as usize;
+                let i = ((body.1 * WIDTH) + body.0) as usize;
                 if i < frame_u32.len() {
                     frame_u32[i] = 0xffffffff;
                 }

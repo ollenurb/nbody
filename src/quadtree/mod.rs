@@ -6,9 +6,6 @@ pub use body::Body;
 mod bound;
 pub use bound::Bound;
 
-mod vec_2d;
-pub use vec_2d::Vec2D;
-
 use crate::consts::THETA;
 
 #[derive(Debug, Clone)]

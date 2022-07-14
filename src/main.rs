@@ -5,7 +5,6 @@ mod quadtree;
 mod simulation;
 mod util;
 
-
 use consts::*;
 use simulation::Simulation;
 
