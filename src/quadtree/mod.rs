@@ -67,10 +67,9 @@ impl QuadTree {
 
     // Compute the exerted force with respect to another Body
     pub fn update_cluster(a: &mut Body, b: &Body) {
-        let new_mass = a.mass + b.mass;
-        a.position.x = ((a.position.x * a.mass) + (b.position.x * b.mass)) / new_mass;
-        a.position.y = ((a.position.y * a.mass) + (b.position.y * b.mass)) / new_mass;
-        a.mass = new_mass;
+        let m_tot = a.mass + b.mass;
+        a.position = (a.position * a.mass + b.position * b.mass) / m_tot;
+        a.mass = m_tot;
     }
 
     pub fn new(w: f64, h: f64) -> Self {
@@ -87,7 +86,47 @@ impl QuadTree {
         }
     }
 
+    /// Iterative insertion method
     pub fn insert(&mut self, body: Body) {
+        let mut nodes_stack: Vec<&mut QuadTree> = Vec::new();
+        nodes_stack.push(self);
+        while !nodes_stack.is_empty() {
+            let current = nodes_stack.pop().expect("Cannot pop an empty stack");
+            match current.node {
+                Node::Empty => current.node = Node::External(body),
+
+                Node::Internal {
+                    ref mut cluster,
+                    ref mut nw,
+                    ref mut ne,
+                    ref mut sw,
+                    ref mut se,
+                } => {
+                    QuadTree::update_cluster(cluster, &body);
+                    if nw.boundary.contains(&body) {
+                        nodes_stack.push(nw);
+                    } else if ne.boundary.contains(&body) {
+                        nodes_stack.push(ne);
+                    } else if sw.boundary.contains(&body) {
+                        nodes_stack.push(sw);
+                    } else if se.boundary.contains(&body) {
+                        nodes_stack.push(se);
+                    }
+                }
+
+                Node::External(cluster) => {
+                    current.node = QuadTree::split_space(&current.boundary);
+                    current.insert(cluster);
+                    nodes_stack.push(current);
+                }
+            }
+        }
+    }
+
+    /// Recursive insertion method.
+    /// It is more elegant but it can overflow the stack with huge number of bodies, leading to an
+    /// uncontrolled crash of the entire program
+    pub fn insert_rec(&mut self, body: Body) {
         match self.node {
             // If the node doesn't contain any node, then put the new body here
             Node::Empty => self.node = Node::External(body),
@@ -103,13 +142,13 @@ impl QuadTree {
             } => {
                 QuadTree::update_cluster(cluster, &body);
                 if nw.boundary.contains(&body) {
-                    nw.insert(body);
+                    nw.insert_rec(body);
                 } else if ne.boundary.contains(&body) {
-                    ne.insert(body);
+                    ne.insert_rec(body);
                 } else if sw.boundary.contains(&body) {
-                    sw.insert(body);
+                    sw.insert_rec(body);
                 } else if se.boundary.contains(&body) {
-                    se.insert(body);
+                    se.insert_rec(body);
                 }
             }
 
@@ -121,8 +160,8 @@ impl QuadTree {
             // mass of x.
             Node::External(c) => {
                 self.node = QuadTree::split_space(&self.boundary);
-                self.insert(c);
-                self.insert(body);
+                self.insert_rec(c);
+                self.insert_rec(body);
             }
         }
     }
@@ -141,14 +180,14 @@ impl QuadTree {
                     stack.push(*ne);
                     stack.push(*sw);
                     stack.push(*se);
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
         bounds
     }
 
-    pub fn compute_force(&self, body: &mut Body) {
+    pub fn compute_force_rec(&self, body: &mut Body) {
         match &self.node {
             // An empty Node doesn't exert any force
             Node::Empty => (),
@@ -156,7 +195,7 @@ impl QuadTree {
                 if a.position != body.position {
                     body.update_force(a)
                 }
-            },
+            }
             Node::Internal {
                 ref cluster,
                 nw,
@@ -170,79 +209,90 @@ impl QuadTree {
                 if dist < THETA {
                     body.update_force(cluster);
                 } else {
-                    nw.compute_force(body);
-                    ne.compute_force(body);
-                    sw.compute_force(body);
-                    se.compute_force(body);
+                    nw.compute_force_rec(body);
+                    ne.compute_force_rec(body);
+                    sw.compute_force_rec(body);
+                    se.compute_force_rec(body);
                 }
-
             }
         }
     }
+
+    pub fn close_bodies<'a>(&'a self, body: Body) -> QuadTreeIterator {
+        QuadTreeIterator {
+            tree: self,
+            body,
+            theta: THETA,
+            stack: vec![self],
+        }
+    }
+
+}
+
+pub struct QuadTreeIterator<'a> {
+    tree: &'a QuadTree,
+    body: Body,
+    theta: f64,
+    stack: Vec<&'a QuadTree>
+}
+
+impl<'a> Iterator for QuadTreeIterator<'a> {
+    type Item = &'a Body;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let current = self.stack.pop()?;
+            match &current.node {
+                Node::External(b) if b.position != self.body.position => {
+                   return Some(b);
+                },
+                Node::Internal { cluster, nw, ne, sw, se } => {
+                    let dist = current.boundary.w / self.body.dist(&cluster);
+                    if dist < self.theta { return Some(cluster) }
+                    else {
+                        self.stack.push(nw);
+                        self.stack.push(ne);
+                        self.stack.push(sw);
+                        self.stack.push(se);
+                    }
+                },
+                _ => ()
+            }
+        }
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        consts::*,
-        quadtree::{Body, QuadTree, Vec2D},
-    };
+    use crate::quadtree::{Body, QuadTree};
 
     use std::time::Instant;
 
     #[test]
     pub fn create_and_insert() {
+        let bounds = (100.0, 100.0);
+
         let mut bodies = vec![
-            Body {
-                position: Vec2D { x: 1.0, y: 1.0 },
-                mass: 1.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
-                force: Default::default(),
-            },
-            Body {
-                position: Vec2D { x: 8.0, y: 2.0 },
-                mass: 1.0,
-                velocity: Vec2D { x: 0.0, y: 0.0 },
-                force: Default::default(),
-            },
-            Body {
-                position: Vec2D { x: 8.0, y: 4.0 },
-                mass: 1.0,
-                velocity: Vec2D { x: 0.0, y: 3.0 },
-                force: Default::default(),
-            },
-            Body {
-                position: Vec2D { x: 8.0, y: 8.0 },
-                mass: 10.0,
-                velocity: Vec2D { x: 1.0, y: 1.0 },
-                force: Default::default(),
-            },
+            Body::new(54.0, 26.0, 1.0, 4.0, 15.7),
+            Body::new(47.0, 21.0, -1.0, 0.0, 5.6),
+            Body::new(8.0, 97.0, -1.0, -1.0, 62.5),
+            Body::new(51.7, 52.3, 0.0, 0.0, 1e3),
+            Body::new(64.0, 72.0, 0.0, 0.0, 1.0),
         ];
 
-        let mut tree = QuadTree::new(WIDTH as f64, HEIGHT as f64);
+        let mut tree = QuadTree::new(bounds.0, bounds.1);
 
-        bodies.iter().for_each(|b| tree.insert(b.clone()));
-        bodies.iter_mut().for_each(|b| tree.compute_force(b));
+        bodies.iter().for_each(|b| tree.insert_rec(b.clone()));
+        bodies.iter_mut().for_each(|b| tree.compute_force_rec(b));
         println!("{:#?}", bodies);
         println!("{:#?}", tree);
     }
 
     #[test]
     pub fn compute_force_must_not_be_nan() {
-        let mut a = Body {
-            position: Vec2D { x: 8.0, y: 4.0 },
-            mass: 1.0,
-            velocity: Vec2D { x: 1.0, y: 1.0 },
-            force: Default::default(),
-        };
-
-        let b = Body {
-            position: Vec2D { x: 8.0, y: 8.0 },
-            mass: 1.0,
-            velocity: Vec2D { x: 1.0, y: 1.0 },
-            force: Default::default(),
-        };
-
+        let mut a = Body::new(8.0, 4.0, 1.0, 1.0, 1.0);
+        let b = Body::new(8.0, 8.0, 1.0, 1.0, 1.0);
 
         a.update_force(&b);
         println!("(a) after computing force exerted by (b): {:#?}", a);
@@ -252,44 +302,31 @@ mod tests {
     fn bench() {
         let mut bodies = Vec::new();
         let items = 10000;
-        let (w, h) = (350, 600);
+        let (w, h) = (350.0, 600.0);
 
-        for _ in 0..items {
-            bodies.push(Body::from_random(w as f64, h as f64, 1.0));
+        for i in 0..items {
+            bodies.push(Body::new(i as f64 / w, i as f64 / h, 1.0, 1.0, 1.0));
         }
 
         let start = Instant::now();
-        let mut tree = QuadTree::new(w as f64, h as f64);
-        bodies.iter().for_each(|b| tree.insert(*b));
+        let mut tree = QuadTree::new(w, h);
+        bodies.iter().for_each(|b| tree.insert_rec(*b));
         let duration = start.elapsed();
         println!("Inserted {} items in: {:?}", items, duration);
 
         let start = Instant::now();
         for body in bodies.iter_mut() {
-            tree.compute_force(body);
+            tree.compute_force_rec(body);
         }
 
         let duration = start.elapsed();
         println!("Computed forces of {} items in: {:?}", items, duration);
     }
 
-
     #[test]
-    fn distance_must_be_correct() {
-        let a = Body {
-            position: Vec2D { x: -7.0, y: -4.0 },
-            velocity: Default::default(),
-            mass: 0.0,
-            force: Default::default(),
-        };
-
-        let b = Body {
-            position: Vec2D { x: 17.0, y: 6.5 },
-            velocity: Default::default(),
-            mass: 0.0,
-            force: Default::default(),
-        };
-
+    fn test_distance_between_bodies() {
+        let a = Body::new(-7.0, -4.0, 0.0, 0.0, 0.0);
+        let b = Body::new(17.0, 6.5, 0.0, 0.0, 0.0);
         println!("distance between a and b is {}", a.dist(&b));
     }
 }

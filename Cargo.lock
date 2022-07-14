@@ -831,7 +831,7 @@ dependencies = [
  "pollster",
  "raw-window-handle",
  "thiserror",
- "ultraviolet",
+ "ultraviolet 0.8.1",
  "wgpu",
 ]
 
@@ -1005,6 +1005,7 @@ dependencies = [
  "log",
  "pixels",
  "rand",
+ "ultraviolet 0.6.1",
  "winit",
  "winit_input_helper",
 ]
@@ -1110,11 +1111,20 @@ dependencies = [
 
 [[package]]
 name = "ultraviolet"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad1fece4dbee533fd94cb9905aeb50e8733e2a177347330386def9f5ea1b36ec"
+dependencies = [
+ "wide 0.5.5",
+]
+
+[[package]]
+name = "ultraviolet"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16b9e3507eba17043af05c8a72fce3ec2c24b58945f45732e71dbc6646d904a7"
 dependencies = [
- "wide",
+ "wide 0.6.5",
 ]
 
 [[package]]
@@ -1379,6 +1389,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "549533d9e1cdd4b4cda7718d33ff500fc4c34b5467b71d76b547ae0324f3b2a2"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "wide"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80b27c76ecc22bd81fe681d9c9eac81e002d7b7048105ee4608f57c4e92e9211"
+dependencies = [
+ "bytemuck",
+ "safe_arch",
 ]
 
 [[package]]

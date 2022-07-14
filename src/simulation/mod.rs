@@ -7,7 +7,7 @@ use super::consts::*;
 use super::quadtree::*;
 use crate::util::*;
 
-use super::quadtree::{QuadTree, Vec2D};
+use super::quadtree::QuadTree;
 
 mod renderizable_body;
 
@@ -35,17 +35,7 @@ impl Simulation {
             match nums.len() {
                 1 => min_max = (-nums[0], nums[0]),
                 5 => {
-                    let body = Body::new(
-                        Vec2D {
-                            x: nums[0],
-                            y: nums[1],
-                        },
-                        Vec2D {
-                            x: nums[2],
-                            y: nums[3],
-                        },
-                        nums[4],
-                    );
+                    let body = Body::new(nums[0], nums[1], nums[2], nums[3], nums[4]);
                     bodies.push(body);
                 }
                 _ => {
@@ -59,20 +49,19 @@ impl Simulation {
         Ok(Simulation {
             bodies,
             min_max,
-            tree: QuadTree::new(min_max.1, min_max.1)
+            tree: QuadTree::new(min_max.1, min_max.1),
         })
     }
 
     /// Update the world internal state by recomputing forces for each body
     /// We use the Barnes Hut Algorithm here
     pub fn update(&mut self) {
-
         // First, filter out bodies that are going out of simulation boundaries
         self.bodies.retain(|b| {
-            // Normalize ranges into x and y
-            let x = map_range(b.position.x, self.min_max.0, self.min_max.1, 0.0, WIDTH as f64) as u32;
-            let y = map_range(b.position.y, self.min_max.0, self.min_max.1, 0.0, HEIGHT as f64) as u32;
-            x <= WIDTH && y <= HEIGHT
+            b.position.x >= self.min_max.0
+                && b.position.x <= self.min_max.1
+                && b.position.y >= self.min_max.0
+                && b.position.y <= self.min_max.1
         });
 
         // Create a tree from the bodies
@@ -84,29 +73,14 @@ impl Simulation {
         });
 
         self.bodies.iter_mut().for_each(|b| {
-            self.tree.compute_force(b);
+            self.tree
+                .close_bodies(b.clone())
+                .into_iter()
+                .for_each(|cb| b.update_force(cb));
             b.update_position(1e-1);
         });
 
         // println!("{:?}", self.bodies[1].velocity);
-    }
-
-    // TODO: Refactor draw pipeline
-    // Draw a rectangle
-    pub fn draw_rect(&self, frame: &mut [u32], x: u32, y: u32, w: u32, h: u32) {
-        for ix in x..x + w {
-            let i = ((y * WIDTH) + ix) as usize;
-            let j = (((y+h) * WIDTH) + ix) as usize;
-            frame[i] = 0xffffffff;
-            frame[j] = 0xffffffff;
-        }
-
-        for iy in y..y + h {
-            let i = ((iy * WIDTH) + x) as usize;
-            let j = ((iy * WIDTH) + (x + w)) as usize;
-            frame[i] = 0xffffffff;
-            frame[j] = 0xffffffff;
-        }
     }
 
     /// Draw the `World` state to the frame buffer.
@@ -163,8 +137,10 @@ mod test {
 
         let start = Instant::now();
         let mut tree = QuadTree::new(WIDTH as f64, HEIGHT as f64);
-        sim.bodies.iter().for_each(|b| tree.insert(*b));
-        sim.bodies.iter_mut().for_each(|b| tree.compute_force(b));
+        sim.bodies.iter().for_each(|b| tree.insert_rec(*b));
+        sim.bodies
+            .iter_mut()
+            .for_each(|b| tree.compute_force_rec(b));
         let elapsed = start.elapsed();
         println!("Computed {} bodies in {:?}", sim.bodies.len(), elapsed);
     }

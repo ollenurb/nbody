@@ -5,8 +5,6 @@ mod quadtree;
 mod simulation;
 mod util;
 
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
 
 use consts::*;
 use simulation::Simulation;
@@ -18,8 +16,6 @@ use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
-
-use crate::quadtree::{Body, Vec2D};
 
 fn main() -> Result<(), Error> {
     env_logger::init();
