@@ -17,6 +17,8 @@ use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
 fn main() -> Result<(), Error> {
+    let filename = std::env::args().nth(1).expect("No input file given");
+
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -36,7 +38,8 @@ fn main() -> Result<(), Error> {
         Pixels::new(WIDTH, HEIGHT, surface_texture)?
     };
 
-    let mut world = Simulation::load_from_file("galaxy1.txt").expect("Couldn't load simulation from file");
+    let mut world =
+        Simulation::load_from_file(&filename).expect("Couldn't load simulation from file");
 
     event_loop.run(move |event, _, control_flow| {
         // Draw the current frame

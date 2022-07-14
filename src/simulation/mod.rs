@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Result};
 
-
 use super::consts::*;
 use super::quadtree::*;
 use crate::util::*;
@@ -12,7 +11,8 @@ use super::quadtree::QuadTree;
 #[derive(Debug)]
 pub struct Simulation {
     bodies: Vec<Body>,
-    min_max: (f64, f64),
+    min_val: f64,
+    max_val: f64,
 }
 
 impl Simulation {
@@ -44,7 +44,8 @@ impl Simulation {
         }
         Ok(Simulation {
             bodies,
-            min_max,
+            min_val: min_max.0,
+            max_val: min_max.1,
             // tree: QuadTree::new(min_max.1, min_max.1),
         })
     }
@@ -54,14 +55,14 @@ impl Simulation {
     pub fn update(&mut self) {
         // First, filter out bodies that are going out of simulation boundaries
         self.bodies.retain(|b| {
-            b.position.x >= self.min_max.0
-                && b.position.x <= self.min_max.1
-                && b.position.y >= self.min_max.0
-                && b.position.y <= self.min_max.1
+            b.position.x >= self.min_val
+                && b.position.x <= self.max_val
+                && b.position.y >= self.min_val
+                && b.position.y <= self.max_val
         });
 
         // Create a tree from the bodies
-        let mut tree = QuadTree::new(self.min_max.1, self.min_max.1);
+        let mut tree = QuadTree::new(self.max_val, self.max_val);
 
         self.bodies.iter_mut().for_each(|b| {
             b.reset_force();
@@ -74,7 +75,6 @@ impl Simulation {
                 .for_each(|cb| b.update_force(cb));
             b.update_position(1e-1);
         });
-
     }
 
     /// Draw the `World` state to the frame buffer.
@@ -90,7 +90,7 @@ impl Simulation {
         // First, transform the bodies into renderizable objects
         self.bodies
             .iter()
-            .map(|b| affine_transform(b.position, self.min_max.0, self.min_max.1))
+            .map(|b| affine_transform(b.position, self.min_val, self.max_val))
             .map(|b| (b.x as u32, b.y as u32))
             .for_each(|body| {
                 let i = ((body.1 * WIDTH) + body.0) as usize;
@@ -105,17 +105,17 @@ impl Simulation {
 mod test {
     use std::time::Instant;
 
-    use crate::{consts::HEIGHT, consts::WIDTH, quadtree::QuadTree};
+    use crate::quadtree::QuadTree;
 
     use super::Simulation;
 
     #[test]
     pub fn load_from_file_then_generate_tree() {
-        let mut sim = Simulation::load_from_file("galaxy1.txt").unwrap();
+        let mut sim = Simulation::load_from_file("galaxy10k.txt").unwrap();
 
         let start = Instant::now();
-        let mut tree = QuadTree::new(WIDTH as f64, HEIGHT as f64);
-        sim.bodies.iter().for_each(|b| tree.insert_rec(*b));
+        let mut tree = QuadTree::new(sim.max_val, sim.max_val);
+        sim.bodies.iter().for_each(|b| tree.insert(*b));
         sim.bodies
             .iter_mut()
             .for_each(|b| tree.compute_force_rec(b));
